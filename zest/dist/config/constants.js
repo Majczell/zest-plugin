@@ -1,0 +1,65 @@
+// src/config/constants.ts
+import { homedir } from "node:os";
+import { join } from "node:path";
+var CLAUDE_ZEST_DIR = join(homedir(), ".claude-zest");
+var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
+var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
+var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
+var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
+var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var LOG_FILE = join(LOGS_DIR, "plugin.log");
+var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
+var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
+var EVENTS_QUEUE_FILE = join(QUEUE_DIR, "events.jsonl");
+var SESSIONS_QUEUE_FILE = join(QUEUE_DIR, "chat-sessions.jsonl");
+var MESSAGES_QUEUE_FILE = join(QUEUE_DIR, "chat-messages.jsonl");
+var PLATFORM = "terminal";
+var SOURCE = "claude-code";
+var CLIENT_ID = "claude-cli";
+var SYNC_INTERVAL_MS = 60000;
+var MAX_RETRY_ATTEMPTS = 3;
+var RETRY_BACKOFF_MS = 5000;
+var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
+var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
+var MAX_CONTENT_PREVIEW_LENGTH = 1000;
+var MAX_SESSION_TITLE_LENGTH = 100;
+var MIN_SESSION_TITLE_LENGTH = 3;
+var MIN_MESSAGES_PER_SESSION = 3;
+var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+var WEB_APP_URL = "http://192.168.1.21:3000";
+var SUPABASE_URL = "http://127.0.0.1:54321";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
+export {
+  WEB_APP_URL,
+  SYNC_LOG_FILE,
+  SYNC_INTERVAL_MS,
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  STATE_DIR,
+  STALE_SESSION_AGE_MS,
+  SOURCE,
+  SESSION_FILE,
+  SESSIONS_QUEUE_FILE,
+  RETRY_BACKOFF_MS,
+  QUEUE_DIR,
+  PROACTIVE_REFRESH_THRESHOLD_MS,
+  PLATFORM,
+  MIN_SESSION_TITLE_LENGTH,
+  MIN_MESSAGES_PER_SESSION,
+  MESSAGES_QUEUE_FILE,
+  MAX_SESSION_TITLE_LENGTH,
+  MAX_RETRY_ATTEMPTS,
+  MAX_DIFF_SIZE_BYTES,
+  MAX_CONTENT_PREVIEW_LENGTH,
+  LOG_FILE,
+  LOGS_DIR,
+  EVENTS_QUEUE_FILE,
+  DAEMON_PID_FILE,
+  CONFIG_FILE,
+  CLIENT_ID,
+  CLAUDE_ZEST_DIR,
+  CLAUDE_PROJECTS_DIR
+};
+
+//# debugId=F164D82EF21B8A3964756E2164756E21
