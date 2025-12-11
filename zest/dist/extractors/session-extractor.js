@@ -10,7 +10,7 @@ var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
 var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
 var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
 var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
-var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var SETTINGS_FILE = join(CLAUDE_ZEST_DIR, "settings.json");
 var LOG_FILE = join(LOGS_DIR, "plugin.log");
 var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
 var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
@@ -1307,10 +1307,10 @@ async function extractSessions() {
       const conversationFile = join2(projectPath, "conversation.jsonl");
       try {
         const stats = await stat(conversationFile);
+        const projectName = projectId.split("-").filter(Boolean).pop() || projectId;
         const session = {
           id: projectId,
-          project_id: projectId,
-          project_name: projectId,
+          project_name: projectName,
           title: await extractSessionTitle(conversationFile),
           created_at: stats.birthtime.toISOString()
         };
@@ -1378,8 +1378,7 @@ async function extractCurrentSession() {
     const stats = await stat(conversationFile);
     const session = {
       id: sessionId,
-      project_id: sessionId,
-      project_name: projectDir,
+      project_name: basename(projectDir),
       title: await extractSessionTitle(conversationFile),
       created_at: stats.birthtime.toISOString()
     };
@@ -1396,4 +1395,4 @@ export {
   extractCurrentSession
 };
 
-//# debugId=FF31898737B201E064756E2164756E21
+//# debugId=D197D99BC237D80F64756E2164756E21

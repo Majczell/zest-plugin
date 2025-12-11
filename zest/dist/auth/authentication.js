@@ -10929,7 +10929,7 @@ var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
 var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
 var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
 var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
-var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var SETTINGS_FILE = join(CLAUDE_ZEST_DIR, "settings.json");
 var LOG_FILE = join(LOGS_DIR, "plugin.log");
 var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
 var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
@@ -10945,7 +10945,7 @@ var SUPABASE_URL = "http://127.0.0.1:54321";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
 
-// src/config/workspace-config.ts
+// src/auth/session-manager.ts
 import { mkdir as mkdir2, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname as dirname2 } from "node:path";
 
@@ -11001,50 +11001,10 @@ class Logger {
 }
 var logger = new Logger;
 
-// src/config/workspace-config.ts
-async function saveWorkspaceConfig(config) {
-  try {
-    await mkdir2(dirname2(CONFIG_FILE), { recursive: true });
-    await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
-    await import("node:fs/promises").then((fs6) => fs6.chmod(CONFIG_FILE, 384));
-    logger.info("Workspace config saved", {
-      workspace_id: config.workspace_id,
-      workspace_name: config.workspace_name
-    });
-  } catch (error) {
-    logger.error("Failed to save workspace config", error);
-    throw new Error("Failed to save workspace configuration");
-  }
-}
-async function loadWorkspaceConfig() {
-  try {
-    try {
-      const content = await readFile(CONFIG_FILE, "utf-8");
-      const config = JSON.parse(content);
-      logger.debug("Workspace config loaded", {
-        workspace_id: config.workspace_id,
-        workspace_name: config.workspace_name
-      });
-      return config;
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-        logger.debug("No workspace config found");
-        return null;
-      }
-      throw error;
-    }
-  } catch (error) {
-    logger.error("Failed to load workspace config", error);
-    return null;
-  }
-}
-
 // src/auth/session-manager.ts
-import { mkdir as mkdir3, readFile as readFile2, unlink as unlink2, writeFile as writeFile2 } from "node:fs/promises";
-import { dirname as dirname3 } from "node:path";
 async function loadSession() {
   try {
-    const content = await readFile2(SESSION_FILE, "utf-8");
+    const content = await readFile(SESSION_FILE, "utf-8");
     const session = JSON.parse(content);
     if (!session.accessToken || !session.refreshToken || !session.expiresAt || !session.userId || !session.email) {
       logger.warn("Invalid session structure, clearing session");
@@ -11078,8 +11038,8 @@ async function loadSession() {
 }
 async function saveSession(session) {
   try {
-    await mkdir3(dirname3(SESSION_FILE), { recursive: true, mode: 448 });
-    await writeFile2(SESSION_FILE, JSON.stringify(session, null, 2), {
+    await mkdir2(dirname2(SESSION_FILE), { recursive: true, mode: 448 });
+    await writeFile(SESSION_FILE, JSON.stringify(session, null, 2), {
       encoding: "utf-8",
       mode: 384
     });
@@ -11091,7 +11051,7 @@ async function saveSession(session) {
 }
 async function clearSession() {
   try {
-    await unlink2(SESSION_FILE);
+    await unlink(SESSION_FILE);
     logger.info("Session cleared successfully");
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -11151,20 +11111,11 @@ async function getValidSession() {
   if (timeUntilExpiration < PROACTIVE_REFRESH_THRESHOLD_MS) {
     try {
       logger.debug(`Token ${timeUntilExpiration < 0 ? "expired" : `expiring in ${Math.round(timeUntilExpiration / 1000)}s`}, refreshing...`);
-      const refreshedSession = await refreshSession(session);
-      const workspaceConfig2 = await loadWorkspaceConfig();
-      if (workspaceConfig2) {
-        refreshedSession.workspaceId = workspaceConfig2.workspace_id;
-      }
-      return refreshedSession;
+      return await refreshSession(session);
     } catch (error) {
       logger.warn("Failed to refresh session", error);
       return null;
     }
-  }
-  const workspaceConfig = await loadWorkspaceConfig();
-  if (workspaceConfig) {
-    session.workspaceId = workspaceConfig.workspace_id;
   }
   return session;
 }
@@ -11384,13 +11335,10 @@ async function selectDefaultWorkspace() {
     }
     workspaces.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     const defaultWorkspace = workspaces[0];
-    await saveWorkspaceConfig({
-      workspace_id: defaultWorkspace.id,
-      workspace_name: defaultWorkspace.name
-    });
     const session = await loadSession();
     if (session) {
       session.workspaceId = defaultWorkspace.id;
+      session.workspaceName = defaultWorkspace.name;
       await saveSession(session);
     }
     if (workspaces.length === 1) {
@@ -11427,4 +11375,4 @@ export {
   logout
 };
 
-//# debugId=41D1B2F4F51597B964756E2164756E21
+//# debugId=66A2E713083ECDA364756E2164756E21
