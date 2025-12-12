@@ -155,7 +155,7 @@ var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var MAX_CONTENT_PREVIEW_LENGTH = 1000;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
+var WEB_APP_URL = "http://localhost:3000";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
 
 // src/utils/logger.ts
@@ -1726,8 +1726,6 @@ async function queueSessionData(sessionId, messages, toolUses, fileStats, projec
   if (isNewSession) {
     const session = {
       id: sessionId,
-      project_id: sessionId,
-      project_name: projectDir,
       title: messages.length > 0 ? messages[0].content.substring(0, 100) : `Session ${sessionId}`,
       created_at: fileStats.birthtime.toISOString()
     };
@@ -1794,4 +1792,4 @@ export {
   extractNewSessionData
 };
 
-//# debugId=A0A220499D8419C664756E2164756E21
+//# debugId=C6A9B89EE08F586464756E2164756E21

@@ -10458,8 +10458,8 @@ var MESSAGES_QUEUE_FILE = join(QUEUE_DIR, "chat-messages.jsonl");
 var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
-var SUPABASE_URL = "http://127.0.0.1:54321";
+var WEB_APP_URL = "http://localhost:3000";
+var SUPABASE_URL = "http://localhost:54321";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
 
@@ -10724,4 +10724,4 @@ export {
   fetchUserWorkspaces
 };
 
-//# debugId=D9698FA175E1BACE64756E2164756E21
+//# debugId=5FDE3EA1DE939F1964756E2164756E21

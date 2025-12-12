@@ -22,7 +22,7 @@ var SOURCE = "claude-code";
 var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
+var WEB_APP_URL = "http://localhost:3000";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
 
 // src/utils/logger.ts
@@ -307,8 +307,7 @@ async function uploadEvents(supabase) {
       event_type: "file.changed",
       user_id: session.userId,
       platform: PLATFORM,
-      source: SOURCE,
-      project_id: e.workspace_id || null
+      source: SOURCE
     }));
     const batchSize = 100;
     let uploadedCount = 0;
@@ -357,4 +356,4 @@ export {
   uploadEvents
 };
 
-//# debugId=C81D44AB853E54B164756E2164756E21
+//# debugId=531445314B566ABB64756E2164756E21

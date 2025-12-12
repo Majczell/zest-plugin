@@ -1307,10 +1307,8 @@ async function extractSessions() {
       const conversationFile = join2(projectPath, "conversation.jsonl");
       try {
         const stats = await stat(conversationFile);
-        const projectName = projectId.split("-").filter(Boolean).pop() || projectId;
         const session = {
           id: projectId,
-          project_name: projectName,
           title: await extractSessionTitle(conversationFile),
           created_at: stats.birthtime.toISOString()
         };
@@ -1378,7 +1376,6 @@ async function extractCurrentSession() {
     const stats = await stat(conversationFile);
     const session = {
       id: sessionId,
-      project_name: basename(projectDir),
       title: await extractSessionTitle(conversationFile),
       created_at: stats.birthtime.toISOString()
     };
@@ -1395,4 +1392,4 @@ export {
   extractCurrentSession
 };
 
-//# debugId=D197D99BC237D80F64756E2164756E21
+//# debugId=73A5B8F294DA340464756E2164756E21

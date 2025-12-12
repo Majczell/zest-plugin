@@ -32,7 +32,7 @@ var MESSAGES_QUEUE_FILE = join(QUEUE_DIR, "chat-messages.jsonl");
 var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
+var WEB_APP_URL = "http://localhost:3000";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
 
 // src/utils/logger.ts
@@ -4217,44 +4217,12 @@ async function getDaemonPid() {
   }
 }
 
-// src/utils/queue-manager.ts
-import { appendFile as appendFile2, mkdir as mkdir4, readFile as readFile4, stat, unlink as unlink3, writeFile as writeFile4 } from "node:fs/promises";
-var locks = new Map;
-async function countLines(filePath) {
-  try {
-    const content = await readFile4(filePath, "utf8");
-    const lines = content.trim().split(`
-`).filter(Boolean);
-    return lines.length;
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      return 0;
-    }
-    throw error;
-  }
-}
-async function getQueueStats() {
-  try {
-    const [events, sessions, messages] = await Promise.all([
-      countLines(EVENTS_QUEUE_FILE),
-      countLines(SESSIONS_QUEUE_FILE),
-      countLines(MESSAGES_QUEUE_FILE)
-    ]);
-    return { events, sessions, messages };
-  } catch (error) {
-    logger.error("Failed to get queue stats:", error);
-    return { events: 0, sessions: 0, messages: 0 };
-  }
-}
-
 // src/commands/status-cli.ts
 async function main() {
   try {
     const session = await loadSession();
-    const stats = await getQueueStats();
     const daemonPid = await getDaemonPid();
     const settings = await loadSettings();
-    const totalQueued = stats.events + stats.sessions + stats.messages;
     if (session) {
       console.log(`✅ Authenticated: ${session.email}`);
       if (session.workspaceId && session.workspaceName) {
@@ -4272,11 +4240,6 @@ async function main() {
       } else {
         console.log("\uD83D\uDCE6 Remote sync: Disabled (local only)");
       }
-      if (totalQueued === 0) {
-        console.log("\uD83D\uDCCA Queue: Empty (synced)");
-      } else {
-        console.log(`\uD83D\uDCCA Queue: ${totalQueued} items (${stats.events} events, ${stats.sessions} sessions, ${stats.messages} messages)`);
-      }
     } else {
       console.log("❌ Not authenticated (tracking locally)");
       if (daemonPid) {
@@ -4288,9 +4251,6 @@ async function main() {
         console.log("\uD83D\uDCE4 Remote sync: Enabled (waiting for auth)");
       } else {
         console.log("\uD83D\uDCE6 Remote sync: Disabled (local only)");
-      }
-      if (totalQueued > 0) {
-        console.log(`\uD83D\uDCE6 Queued: ${totalQueued} items waiting for auth`);
       }
     }
   } catch (error) {
@@ -4304,4 +4264,4 @@ async function main() {
 }
 main();
 
-//# debugId=4198551CA85AD03964756E2164756E21
+//# debugId=06C4854C0D0E5A2964756E2164756E21
