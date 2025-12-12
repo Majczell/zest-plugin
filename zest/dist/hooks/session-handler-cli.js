@@ -152,7 +152,7 @@ var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var MAX_CONTENT_PREVIEW_LENGTH = 1000;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://localhost:3000";
+var WEB_APP_URL = "https://meetzest.com";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
 
 // src/utils/logger.ts
@@ -1922,4 +1922,4 @@ main().catch((error) => {
   process.exit(1);
 });
 
-//# debugId=E8B2D5730A7ACA2164756E2164756E21
+//# debugId=D30E907D049DF35464756E2164756E21

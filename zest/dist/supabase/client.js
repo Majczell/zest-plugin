@@ -10461,7 +10461,7 @@ var MESSAGES_QUEUE_FILE = join(QUEUE_DIR, "chat-messages.jsonl");
 var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://localhost:3000";
+var WEB_APP_URL = "https://meetzest.com";
 var SUPABASE_URL = "https://fnnlebrtmlxxjwdvngck.supabase.co";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubmxlYnJ0bWx4eGp3ZHZuZ2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MzA3MjYsImV4cCI6MjA3MjMwNjcyNn0.0IE3HCY_DiyyALdewbRn1vkedwzDW27NQMQ28V6j4Dk";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
@@ -10674,4 +10674,4 @@ export {
   getSupabaseClient
 };
 
-//# debugId=948879EE16FF5F6164756E2164756E21
+//# debugId=1E6F80C0A3B6A2F564756E2164756E21
