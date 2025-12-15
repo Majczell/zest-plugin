@@ -10447,7 +10447,7 @@ var require_main5 = __commonJS((exports) => {
 });
 
 // src/sync-daemon.ts
-import { appendFile as appendFile3, mkdir as mkdir6 } from "node:fs/promises";
+import { appendFile as appendFile3, mkdir as mkdir5 } from "node:fs/promises";
 import { dirname as dirname5 } from "node:path";
 
 // src/config/constants.ts
@@ -10458,7 +10458,7 @@ var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
 var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
 var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
 var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
-var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var SETTINGS_FILE = join(CLAUDE_ZEST_DIR, "settings.json");
 var LOG_FILE = join(LOGS_DIR, "plugin.log");
 var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
 var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
@@ -10472,9 +10472,9 @@ var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var MIN_MESSAGES_PER_SESSION = 3;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
-var SUPABASE_URL = "http://127.0.0.1:54321";
-var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+var WEB_APP_URL = "https://meetzest.com";
+var SUPABASE_URL = "https://fnnlebrtmlxxjwdvngck.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubmxlYnJ0bWx4eGp3ZHZuZ2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MzA3MjYsImV4cCI6MjA3MjMwNjcyNn0.0IE3HCY_DiyyALdewbRn1vkedwzDW27NQMQ28V6j4Dk";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
 
 // src/config/settings.ts
@@ -14520,7 +14520,7 @@ var DEFAULT_SETTINGS = {
 };
 async function loadSettings() {
   try {
-    const content = await readFile(CONFIG_FILE, "utf-8");
+    const content = await readFile(SETTINGS_FILE, "utf-8");
     const rawSettings = JSON.parse(content);
     const validated = UserSettingsSchema.parse(rawSettings);
     return { ...DEFAULT_SETTINGS, ...validated };
@@ -14657,38 +14657,11 @@ async function getQueueStats() {
 }
 
 // src/auth/session-manager.ts
-import { mkdir as mkdir5, readFile as readFile4, unlink as unlink3, writeFile as writeFile4 } from "node:fs/promises";
-import { dirname as dirname3 } from "node:path";
-
-// src/config/workspace-config.ts
 import { mkdir as mkdir4, readFile as readFile3, unlink as unlink2, writeFile as writeFile3 } from "node:fs/promises";
-async function loadWorkspaceConfig() {
-  try {
-    try {
-      const content = await readFile3(CONFIG_FILE, "utf-8");
-      const config = JSON.parse(content);
-      logger.debug("Workspace config loaded", {
-        workspace_id: config.workspace_id,
-        workspace_name: config.workspace_name
-      });
-      return config;
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-        logger.debug("No workspace config found");
-        return null;
-      }
-      throw error;
-    }
-  } catch (error) {
-    logger.error("Failed to load workspace config", error);
-    return null;
-  }
-}
-
-// src/auth/session-manager.ts
+import { dirname as dirname3 } from "node:path";
 async function loadSession() {
   try {
-    const content = await readFile4(SESSION_FILE, "utf-8");
+    const content = await readFile3(SESSION_FILE, "utf-8");
     const session = JSON.parse(content);
     if (!session.accessToken || !session.refreshToken || !session.expiresAt || !session.userId || !session.email) {
       logger.warn("Invalid session structure, clearing session");
@@ -14722,8 +14695,8 @@ async function loadSession() {
 }
 async function saveSession(session) {
   try {
-    await mkdir5(dirname3(SESSION_FILE), { recursive: true, mode: 448 });
-    await writeFile4(SESSION_FILE, JSON.stringify(session, null, 2), {
+    await mkdir4(dirname3(SESSION_FILE), { recursive: true, mode: 448 });
+    await writeFile3(SESSION_FILE, JSON.stringify(session, null, 2), {
       encoding: "utf-8",
       mode: 384
     });
@@ -14735,7 +14708,7 @@ async function saveSession(session) {
 }
 async function clearSession() {
   try {
-    await unlink3(SESSION_FILE);
+    await unlink2(SESSION_FILE);
     logger.info("Session cleared successfully");
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -14795,20 +14768,11 @@ async function getValidSession() {
   if (timeUntilExpiration < PROACTIVE_REFRESH_THRESHOLD_MS) {
     try {
       logger.debug(`Token ${timeUntilExpiration < 0 ? "expired" : `expiring in ${Math.round(timeUntilExpiration / 1000)}s`}, refreshing...`);
-      const refreshedSession = await refreshSession(session);
-      const workspaceConfig2 = await loadWorkspaceConfig();
-      if (workspaceConfig2) {
-        refreshedSession.workspaceId = workspaceConfig2.workspace_id;
-      }
-      return refreshedSession;
+      return await refreshSession(session);
     } catch (error) {
       logger.warn("Failed to refresh session", error);
       return null;
     }
-  }
-  const workspaceConfig = await loadWorkspaceConfig();
-  if (workspaceConfig) {
-    session.workspaceId = workspaceConfig.workspace_id;
   }
   return session;
 }
@@ -14853,11 +14817,29 @@ function categorizeSessions(sessions, messageCountBySession) {
   };
 }
 function partitionMessagesBySessionCategory(messages, categories) {
-  return {
-    valid: messages.filter((m) => m.session_id && categories.validIds.has(m.session_id)),
-    stale: messages.filter((m) => m.session_id && categories.staleIds.has(m.session_id)),
-    pending: messages.filter((m) => m.session_id && categories.pendingIds.has(m.session_id))
-  };
+  const allSessionIds = new Set([
+    ...categories.validIds,
+    ...categories.staleIds,
+    ...categories.pendingIds
+  ]);
+  const orphaned = [];
+  const valid = [];
+  const stale = [];
+  const pending = [];
+  for (const message of messages) {
+    if (!message.session_id)
+      continue;
+    if (categories.validIds.has(message.session_id)) {
+      valid.push(message);
+    } else if (categories.staleIds.has(message.session_id)) {
+      stale.push(message);
+    } else if (categories.pendingIds.has(message.session_id)) {
+      pending.push(message);
+    } else {
+      orphaned.push(message);
+    }
+  }
+  return { valid, stale, pending, orphaned };
 }
 function logSessionCategorization(categories, messagePartition) {
   if (categories.stale.length > 0) {
@@ -14874,6 +14856,43 @@ async function removeStaleSessionsFromQueue(staleSessionIds) {
   await atomicUpdateQueue(MESSAGES_QUEUE_FILE, (currentMessages) => {
     return currentMessages.filter((m) => m.session_id && !staleSessionIds.has(m.session_id));
   });
+}
+function deduplicateSessions(sessions) {
+  const sessionMap = new Map;
+  for (const session of sessions) {
+    if (!session.id)
+      continue;
+    const existing = sessionMap.get(session.id);
+    if (!existing) {
+      sessionMap.set(session.id, session);
+      continue;
+    }
+    const existingTime = existing.created_at ? new Date(existing.created_at).getTime() : 0;
+    const currentTime = session.created_at ? new Date(session.created_at).getTime() : 0;
+    if (currentTime >= existingTime) {
+      sessionMap.set(session.id, session);
+    }
+  }
+  return Array.from(sessionMap.values());
+}
+function deduplicateMessages(messages) {
+  const messageMap = new Map;
+  for (const message of messages) {
+    if (!message.session_id)
+      continue;
+    const key = `${message.session_id}:${message.message_index}`;
+    const existing = messageMap.get(key);
+    if (!existing) {
+      messageMap.set(key, message);
+      continue;
+    }
+    const existingTime = existing.created_at ? new Date(existing.created_at).getTime() : 0;
+    const currentTime = message.created_at ? new Date(message.created_at).getTime() : 0;
+    if (currentTime >= existingTime) {
+      messageMap.set(key, message);
+    }
+  }
+  return Array.from(messageMap.values());
 }
 function enrichSessionsForUpload(sessions, userId, workspaceId) {
   return sessions.map((s) => ({
@@ -14926,6 +14945,11 @@ async function removeProcessedSessionsFromQueue(sessionsToRemove) {
     return currentMessages.filter((m) => m.session_id && !sessionsToRemove.has(m.session_id));
   });
 }
+async function removeMessagesFromQueue(messageIdsToRemove) {
+  await atomicUpdateQueue(MESSAGES_QUEUE_FILE, (currentMessages) => {
+    return currentMessages.filter((m) => m.id && !messageIdsToRemove.has(m.id));
+  });
+}
 async function uploadChatData(supabase) {
   try {
     const session = await getValidSession();
@@ -14943,17 +14967,29 @@ async function uploadChatData(supabase) {
     const categories = categorizeSessions(queuedSessions, messageCountBySession);
     const messagePartition = partitionMessagesBySessionCategory(queuedMessages, categories);
     logSessionCategorization(categories, messagePartition);
-    if (categories.valid.length === 0) {
-      if (categories.stale.length > 0) {
-        await removeStaleSessionsFromQueue(categories.staleIds);
-        logger.info(`Cleaned up ${categories.stale.length} stale sessions`);
-      }
+    if (messagePartition.orphaned.length > 0) {
+      logger.info(`Found ${messagePartition.orphaned.length} new messages for already-synced sessions`);
+    }
+    if (categories.stale.length > 0) {
+      await removeStaleSessionsFromQueue(categories.staleIds);
+      logger.info(`Cleaned up ${categories.stale.length} stale sessions`);
+    }
+    if (categories.valid.length === 0 && messagePartition.orphaned.length === 0) {
       logger.info("No sessions with sufficient messages to upload");
       return { success: true, uploaded: { sessions: 0, messages: 0 } };
     }
-    logger.info(`Uploading chat data: ${categories.valid.length} sessions, ${messagePartition.valid.length} messages`);
-    const sessionsToUpload = enrichSessionsForUpload(categories.valid, session.userId, session.workspaceId || null);
-    const messagesToUpload = enrichMessagesForUpload(messagePartition.valid, session.userId);
+    const uniqueSessions = deduplicateSessions(categories.valid);
+    const allMessagesToUpload = [...messagePartition.valid, ...messagePartition.orphaned];
+    const uniqueMessages = deduplicateMessages(allMessagesToUpload);
+    if (uniqueSessions.length < categories.valid.length) {
+      logger.info(`Deduplicated sessions: ${categories.valid.length} → ${uniqueSessions.length} (removed ${categories.valid.length - uniqueSessions.length} duplicates)`);
+    }
+    if (uniqueMessages.length < allMessagesToUpload.length) {
+      logger.info(`Deduplicated messages: ${allMessagesToUpload.length} → ${uniqueMessages.length} (removed ${allMessagesToUpload.length - uniqueMessages.length} duplicates)`);
+    }
+    logger.info(`Uploading chat data: ${uniqueSessions.length} sessions, ${uniqueMessages.length} messages`);
+    const sessionsToUpload = enrichSessionsForUpload(uniqueSessions, session.userId, session.workspaceId || null);
+    const messagesToUpload = enrichMessagesForUpload(uniqueMessages, session.userId);
     const sessionsUploaded = await uploadSessionsToSupabase(supabase, sessionsToUpload);
     if (!sessionsUploaded) {
       return { success: false, uploaded: { sessions: 0, messages: 0 } };
@@ -14967,6 +15003,11 @@ async function uploadChatData(supabase) {
     }
     const sessionsToRemove = new Set([...categories.validIds, ...categories.staleIds]);
     await removeProcessedSessionsFromQueue(sessionsToRemove);
+    if (messagePartition.orphaned.length > 0) {
+      const orphanedMessageIds = new Set(messagePartition.orphaned.map((m) => m.id).filter((id) => !!id));
+      await removeMessagesFromQueue(orphanedMessageIds);
+      logger.info(`✓ Removed ${orphanedMessageIds.size} orphaned messages from queue`);
+    }
     logger.info("✓ Chat data upload completed successfully");
     return {
       success: true,
@@ -15035,6 +15076,24 @@ async function getSupabaseClient() {
 }
 
 // src/supabase/events-uploader.ts
+function deduplicateEvents(events) {
+  const eventMap = new Map;
+  for (const event of events) {
+    if (!event.id)
+      continue;
+    const existing = eventMap.get(event.id);
+    if (!existing) {
+      eventMap.set(event.id, event);
+      continue;
+    }
+    const existingTime = existing.timestamp ? new Date(existing.timestamp).getTime() : 0;
+    const currentTime = event.timestamp ? new Date(event.timestamp).getTime() : 0;
+    if (currentTime >= existingTime) {
+      eventMap.set(event.id, event);
+    }
+  }
+  return Array.from(eventMap.values());
+}
 async function uploadEvents(supabase) {
   try {
     const session = await getValidSession();
@@ -15047,14 +15106,17 @@ async function uploadEvents(supabase) {
       logger.debug("No events to upload");
       return { success: true, uploaded: 0 };
     }
-    logger.info(`Uploading ${queuedEvents.length} code digest events`);
-    const eventsToUpload = queuedEvents.map((e) => ({
+    const uniqueEvents = deduplicateEvents(queuedEvents);
+    if (uniqueEvents.length < queuedEvents.length) {
+      logger.info(`Deduplicated events: ${queuedEvents.length} → ${uniqueEvents.length} (removed ${queuedEvents.length - uniqueEvents.length} duplicates)`);
+    }
+    logger.info(`Uploading ${uniqueEvents.length} code digest events`);
+    const eventsToUpload = uniqueEvents.map((e) => ({
       ...e,
       event_type: "file.changed",
       user_id: session.userId,
       platform: PLATFORM,
-      source: SOURCE,
-      project_id: e.workspace_id || null
+      source: SOURCE
     }));
     const batchSize = 100;
     let uploadedCount = 0;
@@ -15161,14 +15223,14 @@ async function syncAllData() {
 }
 
 // src/utils/daemon-manager.ts
-import { readFile as readFile5, unlink as unlink4, writeFile as writeFile5 } from "node:fs/promises";
+import { readFile as readFile4, unlink as unlink3, writeFile as writeFile4 } from "node:fs/promises";
 import { dirname as dirname4, join as join2 } from "node:path";
 import { fileURLToPath } from "node:url";
 var __filename2 = fileURLToPath(import.meta.url);
 var __dirname2 = dirname4(__filename2);
 async function writePidFile(pid) {
   try {
-    await writeFile5(DAEMON_PID_FILE, pid.toString(), "utf-8");
+    await writeFile4(DAEMON_PID_FILE, pid.toString(), "utf-8");
     logger.debug(`Wrote PID ${pid} to daemon.pid`);
   } catch (error) {
     logger.error("Failed to write PID file:", error);
@@ -15179,7 +15241,7 @@ async function writePidFile(pid) {
 class SyncLogger {
   async write(level, message, ...args) {
     try {
-      await mkdir6(dirname5(SYNC_LOG_FILE), { recursive: true });
+      await mkdir5(dirname5(SYNC_LOG_FILE), { recursive: true });
       const timestamp = new Date().toISOString();
       const argsStr = args.length > 0 ? ` ${JSON.stringify(args)}` : "";
       await appendFile3(SYNC_LOG_FILE, `[${timestamp}] ${level}: ${message}${argsStr}
@@ -15266,4 +15328,4 @@ runDaemon().catch((error) => {
   process.exit(1);
 });
 
-//# debugId=E59A72DCE028756764756E2164756E21
+//# debugId=1FA7F882F755851B64756E2164756E21

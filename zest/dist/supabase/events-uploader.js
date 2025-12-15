@@ -1,5 +1,5 @@
 // src/auth/session-manager.ts
-import { mkdir as mkdir3, readFile as readFile2, unlink as unlink2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname as dirname2 } from "node:path";
 
 // src/config/constants.ts
@@ -10,7 +10,7 @@ var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
 var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
 var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
 var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
-var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var SETTINGS_FILE = join(CLAUDE_ZEST_DIR, "settings.json");
 var LOG_FILE = join(LOGS_DIR, "plugin.log");
 var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
 var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
@@ -22,11 +22,8 @@ var SOURCE = "claude-code";
 var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
+var WEB_APP_URL = "https://meetzest.com";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
-
-// src/config/workspace-config.ts
-import { mkdir as mkdir2, readFile, unlink, writeFile } from "node:fs/promises";
 
 // src/utils/logger.ts
 import { appendFile, mkdir } from "node:fs/promises";
@@ -80,34 +77,10 @@ class Logger {
 }
 var logger = new Logger;
 
-// src/config/workspace-config.ts
-async function loadWorkspaceConfig() {
-  try {
-    try {
-      const content = await readFile(CONFIG_FILE, "utf-8");
-      const config = JSON.parse(content);
-      logger.debug("Workspace config loaded", {
-        workspace_id: config.workspace_id,
-        workspace_name: config.workspace_name
-      });
-      return config;
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-        logger.debug("No workspace config found");
-        return null;
-      }
-      throw error;
-    }
-  } catch (error) {
-    logger.error("Failed to load workspace config", error);
-    return null;
-  }
-}
-
 // src/auth/session-manager.ts
 async function loadSession() {
   try {
-    const content = await readFile2(SESSION_FILE, "utf-8");
+    const content = await readFile(SESSION_FILE, "utf-8");
     const session = JSON.parse(content);
     if (!session.accessToken || !session.refreshToken || !session.expiresAt || !session.userId || !session.email) {
       logger.warn("Invalid session structure, clearing session");
@@ -141,8 +114,8 @@ async function loadSession() {
 }
 async function saveSession(session) {
   try {
-    await mkdir3(dirname2(SESSION_FILE), { recursive: true, mode: 448 });
-    await writeFile2(SESSION_FILE, JSON.stringify(session, null, 2), {
+    await mkdir2(dirname2(SESSION_FILE), { recursive: true, mode: 448 });
+    await writeFile(SESSION_FILE, JSON.stringify(session, null, 2), {
       encoding: "utf-8",
       mode: 384
     });
@@ -154,7 +127,7 @@ async function saveSession(session) {
 }
 async function clearSession() {
   try {
-    await unlink2(SESSION_FILE);
+    await unlink(SESSION_FILE);
     logger.info("Session cleared successfully");
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -214,26 +187,17 @@ async function getValidSession() {
   if (timeUntilExpiration < PROACTIVE_REFRESH_THRESHOLD_MS) {
     try {
       logger.debug(`Token ${timeUntilExpiration < 0 ? "expired" : `expiring in ${Math.round(timeUntilExpiration / 1000)}s`}, refreshing...`);
-      const refreshedSession = await refreshSession(session);
-      const workspaceConfig2 = await loadWorkspaceConfig();
-      if (workspaceConfig2) {
-        refreshedSession.workspaceId = workspaceConfig2.workspace_id;
-      }
-      return refreshedSession;
+      return await refreshSession(session);
     } catch (error) {
       logger.warn("Failed to refresh session", error);
       return null;
     }
   }
-  const workspaceConfig = await loadWorkspaceConfig();
-  if (workspaceConfig) {
-    session.workspaceId = workspaceConfig.workspace_id;
-  }
   return session;
 }
 
 // src/utils/queue-manager.ts
-import { appendFile as appendFile2, mkdir as mkdir4, readFile as readFile3, stat, unlink as unlink3, writeFile as writeFile3 } from "node:fs/promises";
+import { appendFile as appendFile2, mkdir as mkdir3, readFile as readFile2, stat, unlink as unlink2, writeFile as writeFile2 } from "node:fs/promises";
 var locks = new Map;
 async function withLock(filePath, fn) {
   while (locks.has(filePath)) {
@@ -253,7 +217,7 @@ async function withLock(filePath, fn) {
 }
 async function readJsonl(filePath) {
   try {
-    const content = await readFile3(filePath, "utf8");
+    const content = await readFile2(filePath, "utf8");
     const lines = content.trim().split(`
 `).filter(Boolean);
     const results = [];
@@ -274,7 +238,7 @@ async function readJsonl(filePath) {
 }
 async function deleteFile(filePath) {
   try {
-    await unlink3(filePath);
+    await unlink2(filePath);
   } catch (error) {
     if (error.code === "ENOENT") {
       return;
@@ -303,6 +267,24 @@ async function clearQueue(queueFile) {
 }
 
 // src/supabase/events-uploader.ts
+function deduplicateEvents(events) {
+  const eventMap = new Map;
+  for (const event of events) {
+    if (!event.id)
+      continue;
+    const existing = eventMap.get(event.id);
+    if (!existing) {
+      eventMap.set(event.id, event);
+      continue;
+    }
+    const existingTime = existing.timestamp ? new Date(existing.timestamp).getTime() : 0;
+    const currentTime = event.timestamp ? new Date(event.timestamp).getTime() : 0;
+    if (currentTime >= existingTime) {
+      eventMap.set(event.id, event);
+    }
+  }
+  return Array.from(eventMap.values());
+}
 async function uploadEvents(supabase) {
   try {
     const session = await getValidSession();
@@ -315,14 +297,17 @@ async function uploadEvents(supabase) {
       logger.debug("No events to upload");
       return { success: true, uploaded: 0 };
     }
-    logger.info(`Uploading ${queuedEvents.length} code digest events`);
-    const eventsToUpload = queuedEvents.map((e) => ({
+    const uniqueEvents = deduplicateEvents(queuedEvents);
+    if (uniqueEvents.length < queuedEvents.length) {
+      logger.info(`Deduplicated events: ${queuedEvents.length} → ${uniqueEvents.length} (removed ${queuedEvents.length - uniqueEvents.length} duplicates)`);
+    }
+    logger.info(`Uploading ${uniqueEvents.length} code digest events`);
+    const eventsToUpload = uniqueEvents.map((e) => ({
       ...e,
       event_type: "file.changed",
       user_id: session.userId,
       platform: PLATFORM,
-      source: SOURCE,
-      project_id: e.workspace_id || null
+      source: SOURCE
     }));
     const batchSize = 100;
     let uploadedCount = 0;
@@ -371,4 +356,4 @@ export {
   uploadEvents
 };
 
-//# debugId=1AC2DA6F9687327D64756E2164756E21
+//# debugId=B2E17AE81B12DADF64756E2164756E21

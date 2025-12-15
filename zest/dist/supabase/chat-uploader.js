@@ -1,5 +1,5 @@
 // src/auth/session-manager.ts
-import { mkdir as mkdir3, readFile as readFile2, unlink as unlink2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname as dirname2 } from "node:path";
 
 // src/config/constants.ts
@@ -10,7 +10,7 @@ var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
 var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
 var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
 var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
-var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var SETTINGS_FILE = join(CLAUDE_ZEST_DIR, "settings.json");
 var LOG_FILE = join(LOGS_DIR, "plugin.log");
 var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
 var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
@@ -23,11 +23,8 @@ var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var MIN_MESSAGES_PER_SESSION = 3;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
+var WEB_APP_URL = "https://meetzest.com";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
-
-// src/config/workspace-config.ts
-import { mkdir as mkdir2, readFile, unlink, writeFile } from "node:fs/promises";
 
 // src/utils/logger.ts
 import { appendFile, mkdir } from "node:fs/promises";
@@ -81,34 +78,10 @@ class Logger {
 }
 var logger = new Logger;
 
-// src/config/workspace-config.ts
-async function loadWorkspaceConfig() {
-  try {
-    try {
-      const content = await readFile(CONFIG_FILE, "utf-8");
-      const config = JSON.parse(content);
-      logger.debug("Workspace config loaded", {
-        workspace_id: config.workspace_id,
-        workspace_name: config.workspace_name
-      });
-      return config;
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-        logger.debug("No workspace config found");
-        return null;
-      }
-      throw error;
-    }
-  } catch (error) {
-    logger.error("Failed to load workspace config", error);
-    return null;
-  }
-}
-
 // src/auth/session-manager.ts
 async function loadSession() {
   try {
-    const content = await readFile2(SESSION_FILE, "utf-8");
+    const content = await readFile(SESSION_FILE, "utf-8");
     const session = JSON.parse(content);
     if (!session.accessToken || !session.refreshToken || !session.expiresAt || !session.userId || !session.email) {
       logger.warn("Invalid session structure, clearing session");
@@ -142,8 +115,8 @@ async function loadSession() {
 }
 async function saveSession(session) {
   try {
-    await mkdir3(dirname2(SESSION_FILE), { recursive: true, mode: 448 });
-    await writeFile2(SESSION_FILE, JSON.stringify(session, null, 2), {
+    await mkdir2(dirname2(SESSION_FILE), { recursive: true, mode: 448 });
+    await writeFile(SESSION_FILE, JSON.stringify(session, null, 2), {
       encoding: "utf-8",
       mode: 384
     });
@@ -155,7 +128,7 @@ async function saveSession(session) {
 }
 async function clearSession() {
   try {
-    await unlink2(SESSION_FILE);
+    await unlink(SESSION_FILE);
     logger.info("Session cleared successfully");
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -215,26 +188,17 @@ async function getValidSession() {
   if (timeUntilExpiration < PROACTIVE_REFRESH_THRESHOLD_MS) {
     try {
       logger.debug(`Token ${timeUntilExpiration < 0 ? "expired" : `expiring in ${Math.round(timeUntilExpiration / 1000)}s`}, refreshing...`);
-      const refreshedSession = await refreshSession(session);
-      const workspaceConfig2 = await loadWorkspaceConfig();
-      if (workspaceConfig2) {
-        refreshedSession.workspaceId = workspaceConfig2.workspace_id;
-      }
-      return refreshedSession;
+      return await refreshSession(session);
     } catch (error) {
       logger.warn("Failed to refresh session", error);
       return null;
     }
   }
-  const workspaceConfig = await loadWorkspaceConfig();
-  if (workspaceConfig) {
-    session.workspaceId = workspaceConfig.workspace_id;
-  }
   return session;
 }
 
 // src/utils/queue-manager.ts
-import { appendFile as appendFile2, mkdir as mkdir4, readFile as readFile3, stat, unlink as unlink3, writeFile as writeFile3 } from "node:fs/promises";
+import { appendFile as appendFile2, mkdir as mkdir3, readFile as readFile2, stat, unlink as unlink2, writeFile as writeFile2 } from "node:fs/promises";
 import { dirname as dirname3 } from "node:path";
 var locks = new Map;
 async function withLock(filePath, fn) {
@@ -257,13 +221,13 @@ async function ensureDirectory(dirPath) {
   try {
     await stat(dirPath);
   } catch {
-    await mkdir4(dirPath, { recursive: true, mode: 448 });
+    await mkdir3(dirPath, { recursive: true, mode: 448 });
     logger.debug(`Created directory: ${dirPath}`);
   }
 }
 async function readJsonl(filePath) {
   try {
-    const content = await readFile3(filePath, "utf8");
+    const content = await readFile2(filePath, "utf8");
     const lines = content.trim().split(`
 `).filter(Boolean);
     const results = [];
@@ -299,7 +263,7 @@ async function atomicUpdateQueue(queueFile, transform) {
       const content = newItems.map((item) => JSON.stringify(item)).join(`
 `) + (newItems.length > 0 ? `
 ` : "");
-      await writeFile3(queueFile, content, "utf8");
+      await writeFile2(queueFile, content, "utf8");
       logger.debug(`Atomically updated queue file: ${queueFile} (${currentItems.length} → ${newItems.length} items)`);
     });
   } catch (error) {
@@ -348,11 +312,29 @@ function categorizeSessions(sessions, messageCountBySession) {
   };
 }
 function partitionMessagesBySessionCategory(messages, categories) {
-  return {
-    valid: messages.filter((m) => m.session_id && categories.validIds.has(m.session_id)),
-    stale: messages.filter((m) => m.session_id && categories.staleIds.has(m.session_id)),
-    pending: messages.filter((m) => m.session_id && categories.pendingIds.has(m.session_id))
-  };
+  const allSessionIds = new Set([
+    ...categories.validIds,
+    ...categories.staleIds,
+    ...categories.pendingIds
+  ]);
+  const orphaned = [];
+  const valid = [];
+  const stale = [];
+  const pending = [];
+  for (const message of messages) {
+    if (!message.session_id)
+      continue;
+    if (categories.validIds.has(message.session_id)) {
+      valid.push(message);
+    } else if (categories.staleIds.has(message.session_id)) {
+      stale.push(message);
+    } else if (categories.pendingIds.has(message.session_id)) {
+      pending.push(message);
+    } else {
+      orphaned.push(message);
+    }
+  }
+  return { valid, stale, pending, orphaned };
 }
 function logSessionCategorization(categories, messagePartition) {
   if (categories.stale.length > 0) {
@@ -369,6 +351,43 @@ async function removeStaleSessionsFromQueue(staleSessionIds) {
   await atomicUpdateQueue(MESSAGES_QUEUE_FILE, (currentMessages) => {
     return currentMessages.filter((m) => m.session_id && !staleSessionIds.has(m.session_id));
   });
+}
+function deduplicateSessions(sessions) {
+  const sessionMap = new Map;
+  for (const session of sessions) {
+    if (!session.id)
+      continue;
+    const existing = sessionMap.get(session.id);
+    if (!existing) {
+      sessionMap.set(session.id, session);
+      continue;
+    }
+    const existingTime = existing.created_at ? new Date(existing.created_at).getTime() : 0;
+    const currentTime = session.created_at ? new Date(session.created_at).getTime() : 0;
+    if (currentTime >= existingTime) {
+      sessionMap.set(session.id, session);
+    }
+  }
+  return Array.from(sessionMap.values());
+}
+function deduplicateMessages(messages) {
+  const messageMap = new Map;
+  for (const message of messages) {
+    if (!message.session_id)
+      continue;
+    const key = `${message.session_id}:${message.message_index}`;
+    const existing = messageMap.get(key);
+    if (!existing) {
+      messageMap.set(key, message);
+      continue;
+    }
+    const existingTime = existing.created_at ? new Date(existing.created_at).getTime() : 0;
+    const currentTime = message.created_at ? new Date(message.created_at).getTime() : 0;
+    if (currentTime >= existingTime) {
+      messageMap.set(key, message);
+    }
+  }
+  return Array.from(messageMap.values());
 }
 function enrichSessionsForUpload(sessions, userId, workspaceId) {
   return sessions.map((s) => ({
@@ -421,6 +440,11 @@ async function removeProcessedSessionsFromQueue(sessionsToRemove) {
     return currentMessages.filter((m) => m.session_id && !sessionsToRemove.has(m.session_id));
   });
 }
+async function removeMessagesFromQueue(messageIdsToRemove) {
+  await atomicUpdateQueue(MESSAGES_QUEUE_FILE, (currentMessages) => {
+    return currentMessages.filter((m) => m.id && !messageIdsToRemove.has(m.id));
+  });
+}
 async function uploadChatData(supabase) {
   try {
     const session = await getValidSession();
@@ -438,17 +462,29 @@ async function uploadChatData(supabase) {
     const categories = categorizeSessions(queuedSessions, messageCountBySession);
     const messagePartition = partitionMessagesBySessionCategory(queuedMessages, categories);
     logSessionCategorization(categories, messagePartition);
-    if (categories.valid.length === 0) {
-      if (categories.stale.length > 0) {
-        await removeStaleSessionsFromQueue(categories.staleIds);
-        logger.info(`Cleaned up ${categories.stale.length} stale sessions`);
-      }
+    if (messagePartition.orphaned.length > 0) {
+      logger.info(`Found ${messagePartition.orphaned.length} new messages for already-synced sessions`);
+    }
+    if (categories.stale.length > 0) {
+      await removeStaleSessionsFromQueue(categories.staleIds);
+      logger.info(`Cleaned up ${categories.stale.length} stale sessions`);
+    }
+    if (categories.valid.length === 0 && messagePartition.orphaned.length === 0) {
       logger.info("No sessions with sufficient messages to upload");
       return { success: true, uploaded: { sessions: 0, messages: 0 } };
     }
-    logger.info(`Uploading chat data: ${categories.valid.length} sessions, ${messagePartition.valid.length} messages`);
-    const sessionsToUpload = enrichSessionsForUpload(categories.valid, session.userId, session.workspaceId || null);
-    const messagesToUpload = enrichMessagesForUpload(messagePartition.valid, session.userId);
+    const uniqueSessions = deduplicateSessions(categories.valid);
+    const allMessagesToUpload = [...messagePartition.valid, ...messagePartition.orphaned];
+    const uniqueMessages = deduplicateMessages(allMessagesToUpload);
+    if (uniqueSessions.length < categories.valid.length) {
+      logger.info(`Deduplicated sessions: ${categories.valid.length} → ${uniqueSessions.length} (removed ${categories.valid.length - uniqueSessions.length} duplicates)`);
+    }
+    if (uniqueMessages.length < allMessagesToUpload.length) {
+      logger.info(`Deduplicated messages: ${allMessagesToUpload.length} → ${uniqueMessages.length} (removed ${allMessagesToUpload.length - uniqueMessages.length} duplicates)`);
+    }
+    logger.info(`Uploading chat data: ${uniqueSessions.length} sessions, ${uniqueMessages.length} messages`);
+    const sessionsToUpload = enrichSessionsForUpload(uniqueSessions, session.userId, session.workspaceId || null);
+    const messagesToUpload = enrichMessagesForUpload(uniqueMessages, session.userId);
     const sessionsUploaded = await uploadSessionsToSupabase(supabase, sessionsToUpload);
     if (!sessionsUploaded) {
       return { success: false, uploaded: { sessions: 0, messages: 0 } };
@@ -462,6 +498,11 @@ async function uploadChatData(supabase) {
     }
     const sessionsToRemove = new Set([...categories.validIds, ...categories.staleIds]);
     await removeProcessedSessionsFromQueue(sessionsToRemove);
+    if (messagePartition.orphaned.length > 0) {
+      const orphanedMessageIds = new Set(messagePartition.orphaned.map((m) => m.id).filter((id) => !!id));
+      await removeMessagesFromQueue(orphanedMessageIds);
+      logger.info(`✓ Removed ${orphanedMessageIds.size} orphaned messages from queue`);
+    }
     logger.info("✓ Chat data upload completed successfully");
     return {
       success: true,
@@ -502,4 +543,4 @@ export {
   uploadChatData
 };
 
-//# debugId=DAA39660E2D93D9F64756E2164756E21
+//# debugId=03EDA7A86371406364756E2164756E21

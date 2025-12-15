@@ -3998,7 +3998,7 @@ var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
 var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
 var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
 var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
-var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var SETTINGS_FILE = join(CLAUDE_ZEST_DIR, "settings.json");
 var LOG_FILE = join(LOGS_DIR, "plugin.log");
 var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
 var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
@@ -4075,7 +4075,7 @@ var DEFAULT_SETTINGS = {
 };
 async function loadSettings() {
   try {
-    const content = await readFile(CONFIG_FILE, "utf-8");
+    const content = await readFile(SETTINGS_FILE, "utf-8");
     const rawSettings = JSON.parse(content);
     const validated = UserSettingsSchema.parse(rawSettings);
     return { ...DEFAULT_SETTINGS, ...validated };
@@ -4090,12 +4090,12 @@ async function loadSettings() {
 }
 async function saveSettings(settings) {
   const validated = UserSettingsSchema.parse(settings);
-  await mkdir2(dirname2(CONFIG_FILE), { recursive: true });
-  await writeFile(CONFIG_FILE, JSON.stringify(validated, null, 2), "utf-8");
+  await mkdir2(dirname2(SETTINGS_FILE), { recursive: true });
+  await writeFile(SETTINGS_FILE, JSON.stringify(validated, null, 2), "utf-8");
 }
 export {
   saveSettings,
   loadSettings
 };
 
-//# debugId=3DDCA37FFD7A6D2B64756E2164756E21
+//# debugId=18AF736E23C5959D64756E2164756E21

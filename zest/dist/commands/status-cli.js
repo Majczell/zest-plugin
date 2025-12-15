@@ -11,7 +11,7 @@ var __export = (target, all) => {
 };
 
 // src/auth/session-manager.ts
-import { mkdir as mkdir3, readFile as readFile2, unlink as unlink2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname as dirname2 } from "node:path";
 
 // src/config/constants.ts
@@ -22,7 +22,7 @@ var QUEUE_DIR = join(CLAUDE_ZEST_DIR, "queue");
 var LOGS_DIR = join(CLAUDE_ZEST_DIR, "logs");
 var STATE_DIR = join(CLAUDE_ZEST_DIR, "state");
 var SESSION_FILE = join(CLAUDE_ZEST_DIR, "session.json");
-var CONFIG_FILE = join(CLAUDE_ZEST_DIR, "config.json");
+var SETTINGS_FILE = join(CLAUDE_ZEST_DIR, "settings.json");
 var LOG_FILE = join(LOGS_DIR, "plugin.log");
 var SYNC_LOG_FILE = join(LOGS_DIR, "sync.log");
 var DAEMON_PID_FILE = join(CLAUDE_ZEST_DIR, "daemon.pid");
@@ -32,11 +32,8 @@ var MESSAGES_QUEUE_FILE = join(QUEUE_DIR, "chat-messages.jsonl");
 var PROACTIVE_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 var MAX_DIFF_SIZE_BYTES = 10 * 1024 * 1024;
 var STALE_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-var WEB_APP_URL = "http://192.168.1.21:3000";
+var WEB_APP_URL = "https://meetzest.com";
 var CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
-
-// src/config/workspace-config.ts
-import { mkdir as mkdir2, readFile, unlink, writeFile } from "node:fs/promises";
 
 // src/utils/logger.ts
 import { appendFile, mkdir } from "node:fs/promises";
@@ -90,34 +87,10 @@ class Logger {
 }
 var logger = new Logger;
 
-// src/config/workspace-config.ts
-async function loadWorkspaceConfig() {
-  try {
-    try {
-      const content = await readFile(CONFIG_FILE, "utf-8");
-      const config = JSON.parse(content);
-      logger.debug("Workspace config loaded", {
-        workspace_id: config.workspace_id,
-        workspace_name: config.workspace_name
-      });
-      return config;
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-        logger.debug("No workspace config found");
-        return null;
-      }
-      throw error;
-    }
-  } catch (error) {
-    logger.error("Failed to load workspace config", error);
-    return null;
-  }
-}
-
 // src/auth/session-manager.ts
 async function loadSession() {
   try {
-    const content = await readFile2(SESSION_FILE, "utf-8");
+    const content = await readFile(SESSION_FILE, "utf-8");
     const session = JSON.parse(content);
     if (!session.accessToken || !session.refreshToken || !session.expiresAt || !session.userId || !session.email) {
       logger.warn("Invalid session structure, clearing session");
@@ -151,8 +124,8 @@ async function loadSession() {
 }
 async function saveSession(session) {
   try {
-    await mkdir3(dirname2(SESSION_FILE), { recursive: true, mode: 448 });
-    await writeFile2(SESSION_FILE, JSON.stringify(session, null, 2), {
+    await mkdir2(dirname2(SESSION_FILE), { recursive: true, mode: 448 });
+    await writeFile(SESSION_FILE, JSON.stringify(session, null, 2), {
       encoding: "utf-8",
       mode: 384
     });
@@ -164,7 +137,7 @@ async function saveSession(session) {
 }
 async function clearSession() {
   try {
-    await unlink2(SESSION_FILE);
+    await unlink(SESSION_FILE);
     logger.info("Session cleared successfully");
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -216,7 +189,7 @@ async function refreshSession(session) {
 }
 
 // src/config/settings.ts
-import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile3 } from "node:fs/promises";
+import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile2 } from "node:fs/promises";
 
 // node_modules/zod/v3/external.js
 var exports_external = {};
@@ -4206,7 +4179,7 @@ var DEFAULT_SETTINGS = {
 };
 async function loadSettings() {
   try {
-    const content = await readFile3(CONFIG_FILE, "utf-8");
+    const content = await readFile2(SETTINGS_FILE, "utf-8");
     const rawSettings = JSON.parse(content);
     const validated = UserSettingsSchema.parse(rawSettings);
     return { ...DEFAULT_SETTINGS, ...validated };
@@ -4221,14 +4194,14 @@ async function loadSettings() {
 }
 
 // src/utils/daemon-manager.ts
-import { readFile as readFile4, unlink as unlink3, writeFile as writeFile4 } from "node:fs/promises";
+import { readFile as readFile3, unlink as unlink2, writeFile as writeFile3 } from "node:fs/promises";
 import { dirname as dirname3, join as join2 } from "node:path";
 import { fileURLToPath } from "node:url";
 var __filename2 = fileURLToPath(import.meta.url);
 var __dirname2 = dirname3(__filename2);
 async function getDaemonPid() {
   try {
-    const pidData = await readFile4(DAEMON_PID_FILE, "utf-8");
+    const pidData = await readFile3(DAEMON_PID_FILE, "utf-8");
     const pid = Number.parseInt(pidData.trim(), 10);
     if (Number.isNaN(pid)) {
       return null;
@@ -4244,49 +4217,16 @@ async function getDaemonPid() {
   }
 }
 
-// src/utils/queue-manager.ts
-import { appendFile as appendFile2, mkdir as mkdir5, readFile as readFile5, stat, unlink as unlink4, writeFile as writeFile5 } from "node:fs/promises";
-var locks = new Map;
-async function countLines(filePath) {
-  try {
-    const content = await readFile5(filePath, "utf8");
-    const lines = content.trim().split(`
-`).filter(Boolean);
-    return lines.length;
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      return 0;
-    }
-    throw error;
-  }
-}
-async function getQueueStats() {
-  try {
-    const [events, sessions, messages] = await Promise.all([
-      countLines(EVENTS_QUEUE_FILE),
-      countLines(SESSIONS_QUEUE_FILE),
-      countLines(MESSAGES_QUEUE_FILE)
-    ]);
-    return { events, sessions, messages };
-  } catch (error) {
-    logger.error("Failed to get queue stats:", error);
-    return { events: 0, sessions: 0, messages: 0 };
-  }
-}
-
 // src/commands/status-cli.ts
 async function main() {
   try {
     const session = await loadSession();
-    const stats = await getQueueStats();
-    const workspace = await loadWorkspaceConfig();
     const daemonPid = await getDaemonPid();
     const settings = await loadSettings();
-    const totalQueued = stats.events + stats.sessions + stats.messages;
     if (session) {
       console.log(`✅ Authenticated: ${session.email}`);
-      if (workspace) {
-        console.log(`\uD83C\uDFE2 Workspace: ${workspace.workspace_name}`);
+      if (session.workspaceId && session.workspaceName) {
+        console.log(`\uD83C\uDFE2 Workspace: ${session.workspaceName}`);
       } else {
         console.log("⚠️  No workspace selected - run /zest:workspace");
       }
@@ -4300,11 +4240,6 @@ async function main() {
       } else {
         console.log("\uD83D\uDCE6 Remote sync: Disabled (local only)");
       }
-      if (totalQueued === 0) {
-        console.log("\uD83D\uDCCA Queue: Empty (synced)");
-      } else {
-        console.log(`\uD83D\uDCCA Queue: ${totalQueued} items (${stats.events} events, ${stats.sessions} sessions, ${stats.messages} messages)`);
-      }
     } else {
       console.log("❌ Not authenticated (tracking locally)");
       if (daemonPid) {
@@ -4316,9 +4251,6 @@ async function main() {
         console.log("\uD83D\uDCE4 Remote sync: Enabled (waiting for auth)");
       } else {
         console.log("\uD83D\uDCE6 Remote sync: Disabled (local only)");
-      }
-      if (totalQueued > 0) {
-        console.log(`\uD83D\uDCE6 Queued: ${totalQueued} items waiting for auth`);
       }
     }
   } catch (error) {
@@ -4332,4 +4264,4 @@ async function main() {
 }
 main();
 
-//# debugId=8944304C313F7E3764756E2164756E21
+//# debugId=7FB2BED3E813AA5A64756E2164756E21

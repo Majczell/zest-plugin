@@ -8,7 +8,7 @@ This repository hosts the Zest plugin for Claude Code CLI, enabling automatic tr
 
 ```bash
 # Add the Zest plugin marketplace to Claude Code
-/plugin marketplace add https://github.com/zest/claude-plugins
+/plugin marketplace add https://github.com/Winding-Labs/zest-claude
 
 # Install the Zest plugin
 /plugin install zest
